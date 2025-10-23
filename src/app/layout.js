@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 export const metadata = {
   title: 'Lighthouse Dashboard',
   description:
-    'A dashboard to monitor and analyze Lighthouse performance metrics.',
+    'A dashboard to monitor and analyze Lighthouse performance metrics for Websites.',
 };
 
 export default function RootLayout({ children }) {
