@@ -3,7 +3,7 @@ export const maxDuration = 300; // 300 seconds = 5 minutes
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabaseServerClient';
-// REMOVE: import lighthouse from 'lighthouse';
+import lighthouse from 'lighthouse'; // <-- 1. GO BACK to the simple static import
 
 // Import puppeteer versions
 import puppeteer from 'puppeteer';
@@ -38,11 +38,7 @@ export async function POST(request, { params }) {
   let browser;
   let launchOptions;
 
-  // --- THIS IS THE RUNTIME FIX ---
-  // We hide the module name in a variable to force a true dynamic import
-  const modulePath = 'lighthouse';
-  const lighthouse = (await import(modulePath)).default;
-  // -------------------------------
+  // 2. REMOVE the dynamic import
 
   try {
     if (process.env.NODE_ENV === 'production') {
@@ -67,6 +63,7 @@ export async function POST(request, { params }) {
     const port = new URL(browser.wsEndpoint()).port;
     const options = { logLevel: 'info', output: 'json', port: port };
 
+    // This should now work because it's external and imported statically
     const runnerResult = await lighthouse(urlToAudit, options);
     const report = runnerResult.lhr;
 
