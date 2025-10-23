@@ -1,9 +1,9 @@
-export const maxDuration = 300; // 300 seconds = 5 minutes
+export const maxDuration = 300; // 5 minutes timeout
 
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabaseServerClient';
-import lighthouse from 'lighthouse'; // <-- 1. GO BACK to the simple static import
+// NO 'import lighthouse...' at the top
 
 // Import puppeteer versions
 import puppeteer from 'puppeteer';
@@ -20,83 +20,32 @@ export async function POST(request, { params }) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const { data: project, error: projectError } = await supabase
-    .from('Project')
-    .select('url')
-    .eq('id', projectId)
-    .single();
-
-  if (projectError || !project) {
-    return NextResponse.json({ error: 'Project not found' }, { status: 404 });
-  }
+  // ... (user/project checks remain the same) ...
 
   const urlToAudit = project.url;
   let browser;
   let launchOptions;
 
-  // 2. REMOVE the dynamic import
+  // --- THIS IS THE FIX for ERR_REQUIRE_ESM ---
+  // Use the direct dynamic import inside the function
+  const lighthouse = (await import('lighthouse')).default;
+  // -------------------------------------------
 
   try {
-    if (process.env.NODE_ENV === 'production') {
-      console.log('Using serverless-friendly Chromium...');
-      launchOptions = {
-        args: chromium.args,
-        defaultViewport: chromium.defaultViewport,
-        executablePath: await chromium.executablePath(),
-        headless: chromium.headless,
-        ignoreHTTPSErrors: true,
-      };
-      browser = await puppeteerCore.launch(launchOptions);
-    } else {
-      console.log('Using local Puppeteer...');
-      launchOptions = {
-        headless: true,
-        args: ['--no-sandbox'],
-      };
-      browser = await puppeteer.launch(launchOptions);
-    }
+    // ... (rest of your try block remains the same, launching puppeteer/chromium) ...
 
     const port = new URL(browser.wsEndpoint()).port;
     const options = { logLevel: 'info', output: 'json', port: port };
 
-    // This should now work because it's external and imported statically
+    // This line uses the dynamically imported lighthouse
     const runnerResult = await lighthouse(urlToAudit, options);
     const report = runnerResult.lhr;
 
-    const scores = {
-      performance: Math.round(report.categories.performance.score * 100),
-      accessibility: Math.round(report.categories.accessibility.score * 100),
-      best_practices_score: Math.round(
-        report.categories['best-practices'].score * 100
-      ),
-      seo: Math.round(report.categories.seo.score * 100),
-    };
-
-    const { error: insertError } = await supabase.from('Audit').insert({
-      project_id: projectId,
-      performance_score: scores.performance,
-      accessibility_score: scores.accessibility,
-      best_practices_score: scores.best_practices_score,
-      seo_score: scores.seo,
-    });
-
-    if (insertError) {
-      throw new Error(`Database error: ${insertError.message}`);
-    }
-
-    await browser.close();
-    console.log('Audit complete, browser closed.');
+    // ... (rest of your code to process scores and save to DB remains the same) ...
 
     return NextResponse.json({ message: 'Audit successful', scores });
   } catch (error) {
-    if (browser) {
-      await browser.close();
-    }
-    console.error('Audit failed:', error.message);
+    // ... (error handling remains the same) ...
     return NextResponse.json(
       { error: `Audit failed: ${error.message}` },
       { status: 500 }

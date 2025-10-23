@@ -5,7 +5,7 @@ const nextConfig = {
       // Mark ALL of these as external
       config.externals = [
         ...config.externals,
-        'lighthouse', // <-- MUST be external
+        'lighthouse', // <-- Make sure this is present
         'puppeteer',
         'puppeteer-core',
         '@sparticuz/chromium',
