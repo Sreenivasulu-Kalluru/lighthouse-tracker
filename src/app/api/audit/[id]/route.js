@@ -76,7 +76,8 @@ export async function POST(request, { params }) {
     const scores = {
       performance: Math.round(report.categories.performance.score * 100),
       accessibility: Math.round(report.categories.accessibility.score * 100),
-      bestPractices: Math.round(
+      // --- THIS IS THE TYPO FIX ---
+      best_practices_score: Math.round(
         report.categories['best-practices'].score * 100
       ),
       seo: Math.round(report.categories.seo.score * 100),
@@ -86,7 +87,7 @@ export async function POST(request, { params }) {
       project_id: projectId,
       performance_score: scores.performance,
       accessibility_score: scores.accessibility,
-      best_practices_score: scores.bestPractces,
+      best_practices_score: scores.best_practices_score, // <-- Was misspelled
       seo_score: scores.seo,
     });
 
