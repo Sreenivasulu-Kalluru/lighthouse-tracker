@@ -3,7 +3,7 @@ export const maxDuration = 300; // 300 seconds = 5 minutes
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabaseServerClient';
-import lighthouse from 'lighthouse';
+// REMOVE: import lighthouse from 'lighthouse';
 
 // Import BOTH puppeteer versions
 import puppeteer from 'puppeteer';
@@ -14,10 +14,7 @@ export async function POST(request, { params }) {
   const cookieStore = await cookies();
   const supabase = createClient(cookieStore);
 
-  // 1. Await the params promise to resolve it
   const resolvedParams = await params;
-
-  // 2. Now destructure the ID from the *resolved* params
   const { id: projectId } = resolvedParams;
 
   const {
@@ -41,10 +38,13 @@ export async function POST(request, { params }) {
   let browser;
   let launchOptions;
 
+  // --- ADD THIS LINE ---
+  // Dynamically import lighthouse. We use .default because it's an ES Module
+  const lighthouse = (await import('lighthouse')).default;
+
   try {
-    // --- THIS IS THE NEW LOGIC ---
+    // ... (rest of your try...catch block is identical)
     if (process.env.NODE_ENV === 'production') {
-      // Production (Vercel)
       console.log('Using serverless-friendly Chromium...');
       launchOptions = {
         args: chromium.args,
@@ -53,30 +53,26 @@ export async function POST(request, { params }) {
         headless: chromium.headless,
         ignoreHTTPSErrors: true,
       };
-      // Use puppeteer-core in production
       browser = await puppeteerCore.launch(launchOptions);
     } else {
-      // Development (Your local machine)
       console.log('Using local Puppeteer...');
       launchOptions = {
         headless: true,
         args: ['--no-sandbox'],
       };
-      // Use the full puppeteer package locally
       browser = await puppeteer.launch(launchOptions);
     }
-    // --- END OF NEW LOGIC ---
 
     const port = new URL(browser.wsEndpoint()).port;
     const options = { logLevel: 'info', output: 'json', port: port };
 
+    // This line will now work
     const runnerResult = await lighthouse(urlToAudit, options);
     const report = runnerResult.lhr;
 
     const scores = {
       performance: Math.round(report.categories.performance.score * 100),
       accessibility: Math.round(report.categories.accessibility.score * 100),
-      // --- THIS IS THE TYPO FIX ---
       best_practices_score: Math.round(
         report.categories['best-practices'].score * 100
       ),
@@ -87,7 +83,7 @@ export async function POST(request, { params }) {
       project_id: projectId,
       performance_score: scores.performance,
       accessibility_score: scores.accessibility,
-      best_practices_score: scores.best_practices_score, // <-- Was misspelled
+      best_practices_score: scores.best_practices_score,
       seo_score: scores.seo,
     });
 
