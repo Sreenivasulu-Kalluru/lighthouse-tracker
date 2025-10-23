@@ -1,0 +1,106 @@
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabaseServerClient';
+import lighthouse from 'lighthouse';
+
+// Import BOTH puppeteer versions
+import puppeteer from 'puppeteer';
+import puppeteerCore from 'puppeteer-core';
+import chromium from '@sparticuz/chromium';
+
+export async function POST(request, { params }) {
+  const cookieStore = await cookies();
+  const supabase = createClient(cookieStore);
+
+  const resolvedParams = await params;
+  const { id: projectId } = resolvedParams;
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const { data: project, error: projectError } = await supabase
+    .from('Project')
+    .select('url')
+    .eq('id', projectId)
+    .single();
+
+  if (projectError || !project) {
+    return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+  }
+
+  const urlToAudit = project.url;
+  let browser;
+  let launchOptions;
+
+  try {
+    // --- THIS IS THE NEW LOGIC ---
+    if (process.env.NODE_ENV === 'production') {
+      // Production (Vercel)
+      console.log('Using serverless-friendly Chromium...');
+      launchOptions = {
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath(),
+        headless: chromium.headless,
+        ignoreHTTPSErrors: true,
+      };
+      // Use puppeteer-core in production
+      browser = await puppeteerCore.launch(launchOptions);
+    } else {
+      // Development (Your local machine)
+      console.log('Using local Puppeteer...');
+      launchOptions = {
+        headless: true,
+        args: ['--no-sandbox'],
+      };
+      // Use the full puppeteer package locally
+      browser = await puppeteer.launch(launchOptions);
+    }
+    // --- END OF NEW LOGIC ---
+
+    const port = new URL(browser.wsEndpoint()).port;
+    const options = { logLevel: 'info', output: 'json', port: port };
+
+    const runnerResult = await lighthouse(urlToAudit, options);
+    const report = runnerResult.lhr;
+
+    const scores = {
+      performance: Math.round(report.categories.performance.score * 100),
+      accessibility: Math.round(report.categories.accessibility.score * 100),
+      bestPractices: Math.round(
+        report.categories['best-practices'].score * 100
+      ),
+      seo: Math.round(report.categories.seo.score * 100),
+    };
+
+    const { error: insertError } = await supabase.from('Audit').insert({
+      project_id: projectId,
+      performance_score: scores.performance,
+      accessibility_score: scores.accessibility,
+      best_practices_score: scores.bestPractices,
+      seo_score: scores.seo,
+    });
+
+    if (insertError) {
+      throw new Error(`Database error: ${insertError.message}`);
+    }
+
+    await browser.close();
+    console.log('Audit complete, browser closed.');
+
+    return NextResponse.json({ message: 'Audit successful', scores });
+  } catch (error) {
+    if (browser) {
+      await browser.close();
+    }
+    console.error('Audit failed:', error.message);
+    return NextResponse.json(
+      { error: `Audit failed: ${error.message}` },
+      { status: 500 }
+    );
+  }
+}
