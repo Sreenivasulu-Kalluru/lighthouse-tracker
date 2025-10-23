@@ -1,3 +1,5 @@
+export const maxDuration = 300; // 300 seconds = 5 minutes
+
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabaseServerClient';
@@ -12,7 +14,10 @@ export async function POST(request, { params }) {
   const cookieStore = await cookies();
   const supabase = createClient(cookieStore);
 
+  // 1. Await the params promise to resolve it
   const resolvedParams = await params;
+
+  // 2. Now destructure the ID from the *resolved* params
   const { id: projectId } = resolvedParams;
 
   const {
@@ -81,7 +86,7 @@ export async function POST(request, { params }) {
       project_id: projectId,
       performance_score: scores.performance,
       accessibility_score: scores.accessibility,
-      best_practices_score: scores.bestPractices,
+      best_practices_score: scores.bestPractces,
       seo_score: scores.seo,
     });
 
