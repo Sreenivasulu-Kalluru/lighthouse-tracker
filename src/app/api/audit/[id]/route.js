@@ -3,7 +3,7 @@ export const maxDuration = 300; // 300 seconds = 5 minutes
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabaseServerClient';
-// REMOVE: import lighthouse from 'lighthouse';
+// NO 'import lighthouse from 'lighthouse';' HERE
 
 // Import BOTH puppeteer versions
 import puppeteer from 'puppeteer';
@@ -38,12 +38,12 @@ export async function POST(request, { params }) {
   let browser;
   let launchOptions;
 
-  // --- ADD THIS LINE ---
+  // --- THIS IS THE FIX ---
   // Dynamically import lighthouse. We use .default because it's an ES Module
   const lighthouse = (await import('lighthouse')).default;
+  // ---------------------
 
   try {
-    // ... (rest of your try...catch block is identical)
     if (process.env.NODE_ENV === 'production') {
       console.log('Using serverless-friendly Chromium...');
       launchOptions = {
@@ -66,7 +66,6 @@ export async function POST(request, { params }) {
     const port = new URL(browser.wsEndpoint()).port;
     const options = { logLevel: 'info', output: 'json', port: port };
 
-    // This line will now work
     const runnerResult = await lighthouse(urlToAudit, options);
     const report = runnerResult.lhr;
 
