@@ -1,12 +1,11 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   webpack: (config, { isServer }) => {
-    // <-- Use => here
     if (isServer) {
       // Mark ALL of these as external
       config.externals = [
         ...config.externals,
-        'lighthouse',
+        'lighthouse', // <-- MUST be external
         'puppeteer',
         'puppeteer-core',
         '@sparticuz/chromium',
