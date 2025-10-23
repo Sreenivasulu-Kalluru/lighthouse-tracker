@@ -3,9 +3,9 @@ export const maxDuration = 300; // 300 seconds = 5 minutes
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabaseServerClient';
-// NO 'import lighthouse from 'lighthouse';' HERE
+import lighthouse from 'lighthouse'; // <-- 1. GO BACK to the simple static import
 
-// Import BOTH puppeteer versions
+// Import puppeteer versions
 import puppeteer from 'puppeteer';
 import puppeteerCore from 'puppeteer-core';
 import chromium from '@sparticuz/chromium';
@@ -38,10 +38,7 @@ export async function POST(request, { params }) {
   let browser;
   let launchOptions;
 
-  // --- THIS IS THE FIX ---
-  // Dynamically import lighthouse. We use .default because it's an ES Module
-  const lighthouse = (await import('lighthouse')).default;
-  // ---------------------
+  // 2. REMOVE the dynamic import from here
 
   try {
     if (process.env.NODE_ENV === 'production') {
@@ -66,6 +63,7 @@ export async function POST(request, { params }) {
     const port = new URL(browser.wsEndpoint()).port;
     const options = { logLevel: 'info', output: 'json', port: port };
 
+    // This will now work because Vercel has bundled lighthouse
     const runnerResult = await lighthouse(urlToAudit, options);
     const report = runnerResult.lhr;
 
