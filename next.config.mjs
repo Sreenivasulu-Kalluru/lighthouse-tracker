@@ -2,9 +2,10 @@
 const nextConfig = {
   webpack: (config, { isServer }) => {
     if (isServer) {
-      // Keep puppeteer and chromium external, but bundle lighthouse
+      // Mark ALL of these as external so Vercel doesn't bundle them
       config.externals = [
         ...config.externals,
+        'lighthouse', // <-- Add this back
         'puppeteer',
         'puppeteer-core',
         '@sparticuz/chromium',
