@@ -3,7 +3,6 @@ export const maxDuration = 300; // 300 seconds = 5 minutes
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabaseServerClient';
-// REMOVE: import lighthouse from 'lighthouse';
 
 // Import puppeteer versions
 import puppeteer from 'puppeteer';
@@ -38,10 +37,10 @@ export async function POST(request, { params }) {
   let browser;
   let launchOptions;
 
-  // --- THIS IS THE RUNTIME FIX ---
-  // We hide the module name in a variable to force a true dynamic import
-  const modulePath = 'lighthouse';
-  const lighthouse = (await import(modulePath)).default;
+  // --- THIS IS THE FIX ---
+  // Use a direct dynamic import. Vercel's bundler will
+  // see this and correctly include 'lighthouse' in the bundle.
+  const lighthouse = (await import('lighthouse')).default;
   // -------------------------------
 
   try {

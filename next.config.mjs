@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   webpack: (config, { isServer }) => {
+    // <-- Use => here
     if (isServer) {
       // Mark ALL of these as external
       config.externals = [
