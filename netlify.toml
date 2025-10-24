@@ -1,0 +1,19 @@
+[functions]
+  # Increase timeout for specific functions if needed, syntax might vary
+  # Check Netlify docs for current timeout extension methods
+  # Example for extending timeout (may require background functions):
+  # included_files = ["node_modules/**"] # May be needed for puppeteer
+
+[[redirects]]
+  from = "/api/audit/:id"
+  to = "/.netlify/functions/___netlify-handler" # Default Next.js handler
+  status = 200
+  # Potentially add timeout here if supported directly on redirects, check docs
+  # function_timeout = 300 # This specific syntax might not be correct, check docs
+
+[build]
+command = "npm run build"
+publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
