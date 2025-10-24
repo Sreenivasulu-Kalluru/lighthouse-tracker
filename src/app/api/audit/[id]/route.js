@@ -3,7 +3,7 @@ export const maxDuration = 300; // 5 minutes timeout
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createClient } from '@/lib/supabaseServerClient';
-import lighthouse from 'lighthouse'; // <-- Static import at the top
+// NO 'import lighthouse...' at the top
 
 // Import puppeteer versions
 import puppeteer from 'puppeteer';
@@ -32,47 +32,36 @@ export async function POST(request, { params }) {
       .from('Project')
       .select('url')
       .eq('id', projectId)
-      .maybeSingle(); // Use maybeSingle() to handle null without erroring
-
-    project = data; // Assign data to project
-    projectError = error; // Assign error
-
-    // Explicitly check for Supabase errors first
-    if (projectError) {
-      console.error('Supabase query error:', projectError.message);
-      return NextResponse.json(
-        { error: `Database query failed: ${projectError.message}` },
-        { status: 500 }
-      );
-    }
-
-    // Check if project data is null or undefined AFTER checking for errors
+      .maybeSingle();
+    project = data;
+    projectError = error;
+    if (projectError) throw projectError;
     if (!project) {
-      console.log(`Project not found for ID: ${projectId}`);
       return NextResponse.json(
-        { error: 'Project not found or user lacks permission' },
+        { error: 'Project not found or permission denied' },
         { status: 404 }
       );
     }
   } catch (err) {
-    // Catch any unexpected errors during fetch
-    console.error('Unexpected error fetching project:', err);
+    console.error('Error fetching project:', err);
     return NextResponse.json(
       { error: 'Failed to fetch project data' },
       { status: 500 }
     );
   }
-
-  // If we reach here, 'project' is guaranteed to be defined and have a 'url'
   const urlToAudit = project.url;
-  // ----------------------------------------------------
+  // ---------------------------------
 
   let browser;
   let launchOptions;
 
-  // REMOVED dynamic import logic from here
+  // --- THIS IS THE FIX for ERR_REQUIRE_ESM ---
+  // Use the direct dynamic import inside the function
+  const lighthouse = (await import('lighthouse')).default;
+  // -------------------------------------------
 
   try {
+    // ... (rest of your try block launching puppeteer/chromium) ...
     if (process.env.NODE_ENV === 'production') {
       console.log('Using serverless-friendly Chromium...');
       launchOptions = {
@@ -95,10 +84,11 @@ export async function POST(request, { params }) {
     const port = new URL(browser.wsEndpoint()).port;
     const options = { logLevel: 'info', output: 'json', port: port };
 
-    // This line uses the statically imported lighthouse
+    // This line uses the dynamically imported lighthouse
     const runnerResult = await lighthouse(urlToAudit, options);
     const report = runnerResult.lhr;
 
+    // ... (rest of your code to process scores and save to DB) ...
     const scores = {
       performance: Math.round(report.categories.performance.score * 100),
       accessibility: Math.round(report.categories.accessibility.score * 100),
@@ -117,16 +107,12 @@ export async function POST(request, { params }) {
     });
 
     if (insertError) {
-      // Check for RLS violation specifically
       if (insertError.code === '42501') {
-        // PostgreSQL code for insufficient privilege
         console.error(
           'RLS policy violation trying to insert audit:',
           insertError.message
         );
-        throw new Error(
-          'Database security policy prevented saving the audit. Check RLS policies for Audit table inserts.'
-        );
+        throw new Error('Database security policy prevented saving the audit.');
       }
       throw new Error(`Database error saving audit: ${insertError.message}`);
     }
@@ -140,7 +126,6 @@ export async function POST(request, { params }) {
       await browser.close();
     }
     console.error('Audit execution or save failed:', error.message);
-    // Provide a more specific error message if possible
     return NextResponse.json(
       { error: `Audit failed: ${error.message}` },
       { status: 500 }

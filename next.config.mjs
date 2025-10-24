@@ -2,10 +2,10 @@
 const nextConfig = {
   webpack: (config, { isServer }) => {
     if (isServer) {
-      // Keep puppeteer external, BUT BUNDLE lighthouse
+      // Mark ALL of these as external
       config.externals = [
         ...config.externals,
-        // REMOVE 'lighthouse' from this list
+        'lighthouse', // <-- MUST be external
         'puppeteer',
         'puppeteer-core',
         '@sparticuz/chromium',
